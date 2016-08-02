@@ -3,7 +3,6 @@ package pianoBot;
 import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Graphics;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.KeyEvent;
@@ -14,7 +13,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 
@@ -117,6 +115,7 @@ public class Bot {
 	}
 	
 	private void initialise() throws InterruptedException{
+		System.out.println(PIANO_TILE_SIZE*1.5);
 		do{
 			try {
 				Thread.sleep(2000);
@@ -311,19 +310,37 @@ public class Bot {
 						break;
 					}
 					if(c.equals(piano_gray)){
-
+						if(offsetY<rec.height-(PIANO_TILE_SIZE+10)){
 							offsetY-=PIANO_TILE_SIZE;
 							force = true;
 							forcedOnce = true;
 							continue;
+						}else{
+							while(c.equals(piano_gray)){
+								offsetY--;
+								c = new Color(bfi.getRGB(offsetX,offsetY));
+							}
+							offsetY--;
+						}
 					}
 					if(c.equals(piano_black)){
-						if(new Color(bfi.getRGB(offsetX, offsetY-(PIANO_TILE_SIZE/2))).equals(piano_gray)){
-							offsetY-=PIANO_TILE_SIZE;
-							continue;
+						if(offsetY<rec.height-(PIANO_TILE_SIZE+10)){
+							if(new Color(bfi.getRGB(offsetX, offsetY-(PIANO_TILE_SIZE/2))).equals(piano_gray)){
+								offsetY-=PIANO_TILE_SIZE;
+								continue;
+							}else{
+								if(new Color(bfi.getRGB(offsetX, offsetY+1)).equals(piano_black) 
+										|| new Color(bfi.getRGB(offsetX, offsetY-1)).equals(piano_black)){
+									foundClickable = true;
+									break;
+								}
+							}
 						}else{
-							if(new Color(bfi.getRGB(offsetX, offsetY+1)).equals(piano_black) 
-									|| new Color(bfi.getRGB(offsetX, offsetY-1)).equals(piano_black)){
+							while(c.equals(piano_black)){
+								offsetY--;
+								c = new Color(bfi.getRGB(offsetX,offsetY));
+							}
+							if(!new Color(bfi.getRGB(offsetX,offsetY)).equals(piano_gray)){
 								foundClickable = true;
 								break;
 							}
@@ -348,6 +365,7 @@ public class Bot {
 			}
 			
 		}
+	
 		
 		private void takeScreen(String name, BufferedImage scr){
 			int b = 0;
@@ -410,4 +428,4 @@ public class Bot {
 	        return 0;
 	    }
 	}
-}
+	}
