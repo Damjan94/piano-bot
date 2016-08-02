@@ -11,6 +11,8 @@ import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.concurrent.PriorityBlockingQueue;
 
@@ -30,11 +32,12 @@ public class Bot {
 	private Robot bot;
 	private WhiteChecker[] threads;
 	private Thread clicker;
-	final long SLEEP = 40;
+	final long SLEEP = 35;
 	final int PIANO_TILE_SIZE = 149; //in pixels
 	int clicks = 0;
 	int score = 0;
 	int scoreOld = 0;
+	int frame = 0;
 	private PriorityBlockingQueue<Data> s;
 	Screen screen;
 	Pattern menu;
@@ -45,12 +48,24 @@ public class Bot {
 	public static void main(String[] args) throws InterruptedException{
 		
 		
+		
 		Bot b = new Bot();
-		//Thread.sleep(5000);
+		Data testd1 = b.new Data(55, 66);
+		Data testd2 = b.new Data(88, 77);
+		int eq = testd1.compareTo(testd2);
+		switch(eq){
+		case 1:
+			System.out.println(testd1.yPosition+" is greater than "+testd2.yPosition);
+			break;
+		case -1:
+			System.out.println(testd1.yPosition+" is less than "+testd2.yPosition);
+			break;
+		default:
+			System.out.println(testd1.yPosition+" is equal to "+testd2.yPosition);
+		}
 		b.initialise();
-		Thread.sleep(50);
+		Thread.sleep(500);
 		b.startThreads();
-		Thread.sleep(50);
 		b.play();
 		
 		b.killThreads();
@@ -63,33 +78,66 @@ public class Bot {
 		s = new PriorityBlockingQueue<>();
 		
 		clicker = new Thread(){
-			
+			boolean run;
+			int x = 0;
 				public void run() {
 					Data d = null;
 					while(running){
+						
+						for(int i = 0; i < 4; i++){
+							synchronized (threads[i].tempBool) {
+								run = threads[i].tempBool;
+							}
+							if(run){
+								try {
+									Thread.sleep(SLEEP/10);
+								} catch (InterruptedException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								}
+								i = 0;
+								System.out.println("sleeping");
+							}
+						}
+						
 						for(WhiteChecker thread : threads){
 							
 							d = thread.s.poll();
-							
-							if(d!=null){//if instead of while originaly
-								s.add(d);
-								//d = thread.s.poll();
-								//System.out.println("found cickable"+thread.getName());
+							while(d!=null){
+								s.add(new Data(d.keyPress, d.yPosition));
+								d = thread.s.poll();
 							}
 						}
 						
 						d = s.poll();
-						while(d!=null){//if instead of while originaly
+						while(d!=null){
 							bot.keyPress(d.keyPress);
+							System.out.print("clicking on ");
+							switch(d.keyPress){
+								case 65 :
+									x = 80;
+									System.out.print("A");
+									break;
+								case 83 :
+									x = 160;
+									System.out.print("S");
+									break;
+								case 68 :
+									x = 240;
+									System.out.print("D");
+									break;
+								case 70 :
+									x = 320;
+									System.out.print("F");
+									break;
+							}
+							bot.mouseMove(rec.x+x, rec.y+d.yPosition);
+							System.out.println(" on frame "+clicks);
+							
+								
+								
 							d = s.poll();
-							//score++;
-							//System.out.println("clicking "+ d.keyPress);
 						}
-						/*try {
-							Thread.sleep(70);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}*/
 					}
 				}
 		};
@@ -208,21 +256,32 @@ public class Bot {
 	}
 	
 	private void play() throws InterruptedException{
-		Thread.sleep(50);
+		LinkedList<BufferedImage> bi = new LinkedList<>();
+		BufferedImage scr;
 		while(running){
 			
 
-			BufferedImage scr = bot.createScreenCapture(rec);
+			scr = bot.createScreenCapture(rec);
 			for(WhiteChecker t : threads){
 				
 				t.setImage(scr);
 				
 			}
-			takeScreen("pic",scr);
+			bi.add(scr);
 			clicks++;
 			Thread.sleep(SLEEP);
 		}
-
+		
+		int size = bi.size();
+		while (size > 0){
+			scr = bi.remove();
+			if(size<30){
+				takeScreen("pic",scr);
+			}
+			size--;
+		}
+		
+		
 	}
 	
 	
@@ -245,6 +304,7 @@ public class Bot {
 		int offsetY;
 		int offsetX;
 		int keyToPress;
+		int tempy1;
 		Color piano_black;
 		Color c;
 		private PriorityBlockingQueue<Data> s;
@@ -275,16 +335,20 @@ public class Bot {
 		
 		
 		public void run(){
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 			while(running){
 				synchronized (tempBool) {
 					changeImg = tempBool;
 				}
 				if(changeImg){
 					synchronized (temp) {
-						bfi = temp;//deepCopy(temp);
+						bfi = temp;
 					}
-					bfi.getHeight();
-					//temp = null;
 					synchronized (tempBool) {
 						tempBool = false;
 					}
@@ -298,19 +362,19 @@ public class Bot {
 				}
 				foundClickable = false;
 				offsetY = rec.height-1;
-				//d = bfi.getGraphics();
+				d = bfi.getGraphics();
 				forcedOnce = false;
 				force = false;
-				while((force&&!forcedOnce) || offsetY>(rec.getHeight()-(PIANO_TILE_SIZE*1.5))){// used to be offsetY>(rec.getHeight()-(PIANO_TILE_SIZE*1.5)
-					//TODO this does not account for the case if the tile is cut
+				while((force&&!forcedOnce) || offsetY>(rec.getHeight()-(PIANO_TILE_SIZE*1.5))){
 					force = false;
+					tempy1 = offsetY;
 					c = new Color(bfi.getRGB(offsetX,offsetY));
 					if(c.equals(lost)){
 						running = false;
 						break;
 					}
 					if(c.equals(piano_gray)){
-						if(offsetY<rec.height-(PIANO_TILE_SIZE+10)){
+						if(offsetY<rec.height-PIANO_TILE_SIZE){
 							offsetY-=PIANO_TILE_SIZE;
 							force = true;
 							forcedOnce = true;
@@ -321,36 +385,49 @@ public class Bot {
 								c = new Color(bfi.getRGB(offsetX,offsetY));
 							}
 							offsetY--;
+							c = new Color(bfi.getRGB(offsetX,offsetY));
+							while(c.equals(piano_black)){
+								c = new Color(bfi.getRGB(offsetX,offsetY));
+								offsetY--;
+							}
+							offsetY--;
+							
+							
 						}
 					}
-					if(c.equals(piano_black)){
-						if(offsetY<rec.height-(PIANO_TILE_SIZE+10)){
+					c = new Color(bfi.getRGB(offsetX,offsetY));
+					if(offsetY<rec.height-(PIANO_TILE_SIZE/3) && c.equals(piano_black)){
+						if(!new Color(bfi.getRGB(offsetX, tempy1-1)).equals(piano_black) && !new Color(bfi.getRGB(offsetX, tempy1+1)).equals(piano_black)){
+							offsetY--;
+							continue;
+						}
+						if(offsetY<rec.height-PIANO_TILE_SIZE){
 							if(new Color(bfi.getRGB(offsetX, offsetY-(PIANO_TILE_SIZE/2))).equals(piano_gray)){
 								offsetY-=PIANO_TILE_SIZE;
 								continue;
 							}else{
-								if(new Color(bfi.getRGB(offsetX, offsetY+1)).equals(piano_black) 
-										|| new Color(bfi.getRGB(offsetX, offsetY-1)).equals(piano_black)){
 									foundClickable = true;
 									break;
-								}
 							}
 						}else{
 							while(c.equals(piano_black)){
 								offsetY--;
 								c = new Color(bfi.getRGB(offsetX,offsetY));
 							}
+							offsetY--;
 							if(!new Color(bfi.getRGB(offsetX,offsetY)).equals(piano_gray)){
 								foundClickable = true;
+								break;
+							}else{
 								break;
 							}
 						}
 					}
 					offsetY--;
 				}
-				//d.setColor(Color.CYAN);
-				//d.drawLine(offsetX, rec.height-1, offsetX, offsetY);
-				//d.dispose();
+				d.setColor(Color.CYAN);
+				d.drawLine(offsetX, rec.height-1, offsetX, offsetY);
+				d.dispose();
 				if(foundClickable){
 					s.add(new Data(keyToPress, offsetY));
 					//takeScreen(getName(),bfi);
@@ -421,9 +498,9 @@ public class Bot {
 		
 		public int compareTo(Data d)
 	    {
-	        if(yPosition>d.yPosition) return -1; //reversed
+	        if(yPosition> d.yPosition) return -1; //reversed
 	        
-	        if(yPosition<d.yPosition) return 1; //reversed
+	        if(yPosition< d.yPosition) return 1; //reversed
 	        
 	        return 0;
 	    }
