@@ -47,7 +47,6 @@ public class Bot {
 	public static void main(String[] args) throws InterruptedException{
 		
 		
-		System.out.println("new Stage");
 		Bot b = new Bot();
 		//Thread.sleep(5000);
 		b.initialise();
